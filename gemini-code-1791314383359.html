@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kim FX - Matches & Differs Digit Analyzer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .logo-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-title h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--accent-blue);
+            letter-spacing: 1px;
+        }
+
+        .badge {
+            background-color: var(--border-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--accent-green);
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 850px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: #0f172a;
+            color: var(--text-main);
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+        .btn-start { background-color: var(--accent-green); color: white; }
+        .btn-stop { background-color: var(--accent-red); color: white; }
+        .btn-csv { background-color: var(--accent-blue); color: white; margin-top: 10px; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background-color: #0f172a;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .digit-bar-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .digit-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .digit-label {
+            width: 25px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .bar-bg {
+            flex-grow: 1;
+            background-color: #0f172a;
+            height: 22px;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background-color: var(--accent-blue);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .bar-fill.cold { background-color: var(--accent-green); }
+        .bar-fill.hot { background-color: var(--accent-red); }
+
+        .pct-label {
+            position: absolute;
+            right: 8px;
+            top: 2px;
+            font-size: 0.75rem;
+            color: var(--text-main);
+        }
+
+        .table-wrapper {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th { background-color: #0f172a; color: var(--text-muted); }
+        .win { color: var(--accent-green); font-weight: bold; }
+        .loss { color: var(--accent-red); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="logo-title">
+            <h1>KIM FX</h1>
+            <span class="badge">PRO TRADER ENGINE</span>
+        </div>
+        <div id="connection-status" style="color: var(--accent-red);">🔴 Disconnected</div>
+    </header>
+
+    <div class="grid-layout">
+        <!-- CONTROLS & CONFIGURATION CARD -->
+        <div class="card">
+            <h2>Bot Configuration</h2>
+            <div class="form-group">
+                <label for="apiToken">Deriv API Token (Read + Trade)</label>
+                <input type="password" id="apiToken" placeholder="Paste your Deriv Token here">
+            </div>
+
+            <div class="form-group">
+                <label for="symbol">Synthetic Index</label>
+                <select id="symbol">
+                    <option value="R_100">Volatility 100 Index</option>
+                    <option value="R_75">Volatility 75 Index</option>
+                    <option value="R_50">Volatility 50 Index</option>
+                    <option value="R_25">Volatility 25 Index</option>
+                    <option value="R_10">Volatility 10 Index</option>
+                    <option value="1HZ10V">Volatility 10 (1s) Index</option>
+                    <option value="1HZ100V">Volatility 100 (1s) Index</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="contractType">Contract Type</label>
+                <select id="contractType">
+                    <option value="DIGITDIFF">Differs (High Win Rate)</option>
+                    <option value="DIGITMATCH">Matches (High Payout)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="stake">Stake Amount ($)</label>
+                <input type="number" id="stake" value="10.00" step="0.5">
+            </div>
+
+            <div class="form-group">
+                <label for="coldThreshold">Trigger Threshold (%)</label>
+                <input type="number" id="coldThreshold" value="3.0" step="0.5" help="Trigger trade if digit frequency drops below this %">
+            </div>
+
+            <button id="btnToggle" class="btn-start" onclick="toggleBot()">Start Kim FX Bot</button>
+            <button class="btn-csv" onclick="downloadCSV()">Export CSV Trade Log</button>
+        </div>
+
+        <!-- LIVE ANALYTICS CARD -->
+        <div class="card">
+            <h2>Live Performance & Digit Distribution</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div style="font-size:0.75rem; color:var(--text-muted)">TRADES</div>
+                    <div id="statTotal" class="stat-value">0</div>
+                </div>
+                <div class="stat-box">
+                    <div style="font-size:0.75rem; color:var(--text-muted)">WIN RATE</div>
+                    <div id="statWinRate" class="stat-value">0%</div>
+                </div>
+                <div class="stat-box">
+                    <div style="font-size:0.75rem; color:var(--text-muted)">WINS / LOSSES</div>
+                    <div id="statWinLoss" class="stat-value">0/0</div>
+                </div>
+                <div class="stat-box">
+                    <div style="font-size:0.75rem; color:var(--text-muted)">NET PnL</div>
+                    <div id="statPnL" class="stat-value" style="color:var(--accent-green)">$0.00</div>
+                </div>
+            </div>
+
+            <!-- DIGIT FREQUENCY BARS -->
+            <div class="digit-bar-container" id="digitBars">
+                <!-- Bars 0-9 generated via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- TRADE LOG CARD -->
+    <div class="card" style="margin-top: 20px;">
+        <h2>Audit Trade Log</h2>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Order ID</th>
+                        <th>Symbol</th>
+                        <th>Target Digit</th>
+                        <th>Exit Digit</th>
+                        <th>Stake</th>
+                        <th>Profit/Loss</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tradeLogBody">
+                    <!-- Log entries inserted dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global State Variables
+    let ws = null;
+    let isBotRunning = false;
+    let activeTrade = false;
+    let currentTargetDigit = null;
+    let tickHistory = [];
+    const WINDOW_SIZE = 100;
+
+    // PnL Metrics
+    let totalTrades = 0;
+    let wins = 0;
+    let losses = 0;
+    let netPnL = 0.0;
+    let tradeLogs = [];
+
+    // Initialize Page
+    window.onload = () => {
+        renderBars();
+    };
+
+    function renderBars() {
+        const container = document.getElementById('digitBars');
+        container.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            container.innerHTML += `
+                <div class="digit-row">
+                    <div class="digit-label">${i}</div>
+                    <div class="bar-bg">
+                        <div class="bar-fill" id="bar-${i}"></div>
+                        <span class="pct-label" id="pct-${i}">0.0%</span>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function toggleBot() {
+        if (isBotRunning) {
+            stopBot();
+        } else {
+            startBot();
+        }
+    }
+
+    function startBot() {
+        const token = document.getElementById('apiToken').value.trim();
+        if (!token) {
+            alert("Please enter a valid Deriv API Token!");
+            return;
+        }
+
+        isBotRunning = true;
+        const btn = document.getElementById('btnToggle');
+        btn.innerText = "Stop Kim FX Bot";
+        btn.className = "btn-stop";
+
+        // Open WebSocket
+        ws = new WebSocket("wss://ws.derivws.com/websockets/v3?app_id=1089");
+
+        ws.onopen = () => {
+            document.getElementById('connection-status').innerHTML = "🟢 Connected";
+            document.getElementById('connection-status').style.color = "var(--accent-green)";
+            // Authorize
+            ws.send(JSON.stringify({ authorize: token }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            handleMessage(data);
+        };
+
+        ws.onclose = () => {
+            stopBot();
+        };
+
+        ws.onerror = (err) => {
+            console.error("WebSocket Error:", err);
+            stopBot();
+        };
+    }
+
+    function stopBot() {
+        isBotRunning = false;
+        if (ws) ws.close();
+        document.getElementById('connection-status').innerHTML = "🔴 Disconnected";
+        document.getElementById('connection-status').style.color = "var(--accent-red)";
+        const btn = document.getElementById('btnToggle');
+        btn.innerText = "Start Kim FX Bot";
+        btn.className = "btn-start";
+    }
+
+    function handleMessage(data) {
+        const msgType = data.msg_type;
+
+        if (msgType === "authorize") {
+            if (data.error) {
+                alert("Authorization failed: " + data.error.message);
+                stopBot();
+            } else {
+                // Subscribe to tick stream
+                const symbol = document.getElementById('symbol').value;
+                ws.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
+            }
+        }
+
+        else if (msgType === "tick") {
+            const quote = data.tick.quote;
+            const priceStr = quote.toFixed(4).replace('.', '');
+            const lastDigit = parseInt(priceStr.slice(-1));
+            
+            tickHistory.push(lastDigit);
+            if (tickHistory.length > WINDOW_SIZE) tickHistory.shift();
+
+            updateDigitFrequencies();
+            checkTradeSignal();
+        }
+
+        else if (msgType === "proposal") {
+            if (data.error) {
+                activeTrade = false;
+            } else {
+                // Execute Buy
+                ws.send(JSON.stringify({
+                    buy: data.proposal.id,
+                    price: data.proposal.ask_price
+                }));
+            }
+        }
+
+        else if (msgType === "buy") {
+            if (data.error) {
+                activeTrade = false;
+            } else {
+                const contractId = data.buy.contract_id;
+                // Subscribe to Settlement Stream
+                ws.send(JSON.stringify({
+                    proposal_open_contract: 1,
+                    contract_id: contractId,
+                    subscribe: 1
+                }));
+            }
+        }
+
+        else if (msgType === "proposal_open_contract") {
+            const contract = data.proposal_open_contract;
+            if (contract && contract.is_sold === 1) {
+                const profit = contract.profit;
+                const status = contract.status;
+                const exitTick = contract.exit_tick_display_value;
+                const exitDigit = exitTick ? parseInt(exitTick.toString().replace('.','').slice(-1)) : "N/A";
+                
+                // Update Stats
+                totalTrades++;
+                netPnL += profit;
+                if (status === "won" || profit > 0) { wins++; } else { losses++; }
+
+                // Log Trade
+                const logItem = {
+                    time: new Date().toLocaleTimeString(),
+                    id: contract.contract_id,
+                    symbol: contract.symbol,
+                    target: currentTargetDigit,
+                    exit: exitDigit,
+                    stake: contract.buy_price,
+                    profit: profit,
+                    status: status
+                };
+                tradeLogs.unshift(logItem);
+                
+                updateUIStats();
+                renderTradeLog();
+
+                // Unsubscribe contract
+                if (data.subscription) {
+                    ws.send(JSON.stringify({ forget: data.subscription.id }));
+                }
+
+                activeTrade = false;
+            }
+        }
+    }
+
+    function updateDigitFrequencies() {
+        if (tickHistory.length === 0) return;
+        
+        const counts = {};
+        for (let i = 0; i < 10; i++) counts[i] = 0;
+        tickHistory.forEach(d => counts[d]++);
+
+        const threshold = parseFloat(document.getElementById('coldThreshold').value);
+
+        for (let i = 0; i < 10; i++) {
+            const pct = ((counts[i] / tickHistory.length) * 100).toFixed(1);
+            const bar = document.getElementById(`bar-${i}`);
+            const label = document.getElementById(`pct-${i}`);
+            
+            bar.style.width = `${pct}%`;
+            label.innerText = `${pct}%`;
+
+            bar.className = 'bar-fill';
+            if (parseFloat(pct) <= threshold) {
+                bar.classList.add('cold');
+            } else if (parseFloat(pct) >= 15.0) {
+                bar.classList.add('hot');
+            }
+        }
+    }
+
+    function checkTradeSignal() {
+        if (tickHistory.length < 30 || activeTrade || !isBotRunning) return;
+
+        const threshold = parseFloat(document.getElementById('coldThreshold').value);
+        const counts = {};
+        for (let i = 0; i < 10; i++) counts[i] = 0;
+        tickHistory.forEach(d => counts[d]++);
+
+        let coldDigit = 0;
+        let minPct = 100;
+
+        for (let i = 0; i < 10; i++) {
+            const pct = (counts[i] / tickHistory.length) * 100;
+            if (pct < minPct) {
+                minPct = pct;
+                coldDigit = i;
+            }
+        }
+
+        if (minPct <= threshold) {
+            activeTrade = true;
+            currentTargetDigit = coldDigit;
+            
+            const contractType = document.getElementById('contractType').value;
+            const stake = parseFloat(document.getElementById('stake').value);
+            const symbol = document.getElementById('symbol').value;
+
+            // Request Proposal
+            ws.send(JSON.stringify({
+                proposal: 1,
+                amount: stake,
+                basis: "stake",
+                contract_type: contractType,
+                currency: "USD",
+                duration: 1,
+                duration_unit: "t",
+                symbol: symbol,
+                barrier: coldDigit.toString()
+            }));
+        }
+    }
+
+    function updateUIStats() {
+        document.getElementById('statTotal').innerText = totalTrades;
+        const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(1) : 0;
+        document.getElementById('statWinRate').innerText = `${winRate}%`;
+        document.getElementById('statWinLoss').innerText = `${wins}/${losses}`;
+        
+        const pnlEl = document.getElementById('statPnL');
+        pnlEl.innerText = `${netPnL >= 0 ? '+' : ''}$${netPnL.toFixed(2)}`;
+        pnlEl.style.color = netPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+    }
+
+    function renderTradeLog() {
+        const tbody = document.getElementById('tradeLogBody');
+        tbody.innerHTML = '';
+        
+        tradeLogs.forEach(t => {
+            const isWin = t.status === 'won' || t.profit > 0;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${t.time}</td>
+                    <td>${t.id}</td>
+                    <td>${t.symbol}</td>
+                    <td>${t.target}</td>
+                    <td>${t.exit}</td>
+                    <td>$${parseFloat(t.stake).toFixed(2)}</td>
+                    <td class="${isWin ? 'win' : 'loss'}">${t.profit >= 0 ? '+' : ''}$${parseFloat(t.profit).toFixed(2)}</td>
+                    <td class="${isWin ? 'win' : 'loss'}">${t.status.toUpperCase()}</td>
+                </tr>
+            `;
+        });
+    }
+
+    function downloadCSV() {
+        if (tradeLogs.length === 0) {
+            alert("No trade history available to export.");
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,Time,Order ID,Symbol,Target Digit,Exit Digit,Stake,Profit_Loss,Status\n";
+        
+        tradeLogs.forEach(t => {
+            csvContent += `${t.time},${t.id},${t.symbol},${t.target},${t.exit},${t.stake},${t.profit},${t.status}\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `kim_fx_trade_log_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>
